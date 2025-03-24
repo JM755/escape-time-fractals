@@ -1,0 +1,62 @@
+
+
+Common screen resolutions:
+3024x1964 - mbp
+1920x1080 - standard
+300x200 - test
+
+
+dpi:
+254 - MBP
+
+Map type:
+'escape_time', 'functional'
+
+
+
+Function Variables
+
+Nicholson Bailey params
+# k=2 #Reproduction rate of host population 'x'
+# c=1 #Viable egg rate of parasite population 'y' per host 'x'
+# a=1 #Parasite searching efficiency of parasite in population 'y'
+
+Henon map (first 'version')
+A=0.2
+B=1.01
+'max_iteration': 500,
+'escape':9,
+'x_centrepoint': 0.25,
+'y_centrepoint': 0.00,
+'magnification': 8,
+
+complex guass iterated map
+# A=complex(pi/2,pi/2)
+# B=complex(0,0)
+
+eisenstein mapping
+# root=6
+# power=root/2
+# omega = cmath.e**complex(0,2*pi/root)
+# good bounds: 
+    'x_centrepoint': 0,
+    'y_centrepoint': 0,
+    'magnification': 3,
+    'max_iteration': 20,
+    'escape':10,
+
+
+
+
+Interesting maps I've found.
+
+def f(X, Y, i):
+    #return (e**complex(X[i],Y[i])/(1-complex(X[0],Y[0]))).real
+    #return (e**(Y[i]**2-X[i]**2))*(cos(2*A.real*X[i]*Y[i]))+B.real
+    pass
+
+def g(X,Y, i):
+    #return (e**complex(X[i],Y[i])/complex(X[0],Y[0])).imag
+    #return (e**(Y[i]**2-X[i]**2))*(-sin(2*A.imag*X[i]*Y[i]))+B.imag
+    pass
+

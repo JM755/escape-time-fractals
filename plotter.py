@@ -1,60 +1,59 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import time
+import matplotlib.colors as colors
+from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 import os
+import time
 
-from util import *
-from colormap import *
-from hypercomplex import HyperComplex
-from configure import Configuration
+from coupledfractals import DualSystem
+from plotparams import *
+from common import *
 
-from multibrot import *
-from hyperbrot import *
-
-
-class FractalplotAttrs(Configuration):
-    pass
-
-class Fractalplot():
-    def __init__(self, re_start, re_stop, im_start, im_stop, resolution_x, resolution_y, class_type = Multibrot, enable_save = False, enable_plot = True, dpi = 227):
-        self.enable_save = enable_save
-        self.enable_plot = enable_plot
-        self.class_type = class_type
-
-        self.re_start   = re_start
-        self.re_stop    = re_stop
-        self.im_start   = im_start
-        self.im_stop    = im_stop
-        self.resolution_x = resolution_x
-        self.resolution_y = resolution_y
-        self.dpi = dpi
-
-        self.lin1 = np.linspace(self.re_start, self.re_stop, self.resolution_x)
-        self.lin2 = np.linspace(self.im_start, self.im_stop, self.resolution_y)
-        self.RE, self.IM = np.meshgrid(self.lin1, self.lin2)
-
-        self.evaluate_all_maps = np.vectorize(self.evaluate_map)
-        self.iteration_maps = self.evaluate_all_maps(self.RE, self.IM)
+class Plotter:
+    def __init__(self, parameters, meta_parameters):
+        self.p = parameters
+        self.mp = meta_parameters
+        self._f = self.p['f(x,y)->x']
+        self._g = self.p['g(x,y)->y']
+        self.x_space, self.y_space= self.mk_x_space(), self.mk_y_space()
+        self.x_mesh, self.y_mesh = np.meshgrid(self.x_space, self.y_space)
+        self.map_mesh = v_ize(self.evaluate_map_single)
+        self.result = self.map_mesh(self.x_mesh, self.y_mesh)
         self.plot()
 
+    def mk_x_space(self):
+        x,y = 0,1
+        centre, mag, x_res, y_res = self.p['x_centrepoint'], self.p['magnification'], self.p['x_resolution'], self.p['y_resolution']
+        x_scale = x_res/y_res
+        x_start, x_stop = centre-x_scale*mag/2, centre+x_scale*mag/2
+        return np.linspace(x_start, x_stop, x_res)
 
+    def mk_y_space(self):
+        x,y=0,1
+        centre, mag, y_res = self.p['y_centrepoint'], self.p['magnification'], self.p['y_resolution']
+        y_start, y_stop = centre-mag/2, centre+mag/2
+        return np.linspace(y_start, y_stop, y_res)
+    
+    
+    def evaluate_map_single(self, x_0, y_0):
+        map_type = self.p['map_type']
+        max_iter, escape = self.p['max_iteration'], self.p['escape']
+        single_mapping = DualSystem(x_0, y_0, self._f, self._g)
+        return single_mapping.do_iteration(max_iter, escape, map_type)
 
-    def plot(self):
-        self.fig, self.axs = plt.subplots(layout='constrained')
-        self.pc = self.axs.pcolormesh(self.RE, self.IM, self.iteration_maps, vmin=0, vmax=Multibrot.attrs.max_iteration, cmap=twilight_cmap)#'twilight_shifted') #newcmp)#'inferno_r') #
-
-        self.axs.set_aspect('equal', adjustable='box')
-        self.save_plot_to_folder(draw_features = 'off')
-        self.axs.set_title('Hypercomplex Map')
-        if self.enable_plot:
-            plt.axis('on')
+    def show_graph(self):
+        title = self.p['title']
+        ax_aspect, ax_adjust = self.mp['axes_aspect'], self.mp['axes_adjustable']
+        if self.p['draw_features'] == 'on':
+            self.axs.set_aspect(ax_aspect, adjustable = ax_adjust)
+            self.axs.set_title(title)
+            self.fig.colorbar(self.pc, ax=self.axs)
+        if self.p['draw_features'] == 'off':
+            self.axs.axis('off')
+        if self.mp['show_plot']:
             plt.show()
 
-    def evaluate_map(self, re, im):
-        return self.class_type(re, im).do_map_iteration()
-    
-    def make_plot_dir(self):
-        #🤮
+    def make_plot_dir(self): #🤮
         split = os.path.split
         abspath = os.path.abspath
         self.image_path = split(split(abspath(__file__))[0])[0] 
@@ -63,32 +62,21 @@ class Fractalplot():
         self.image_path = self.image_path + '/plots/'
 
     
-    def save_plot_to_folder(self, draw_features):
-        if self.enable_save == True:
+    def save_graph(self):
+        if self.mp['save_plot']:
             self.make_plot_dir()
-            plt.axis(draw_features)
+            plt.axis(self.p['draw_features'])
             self.image_name = f'Fractal-{time.time()}.pdf'
-            self.fig.savefig(self.image_path+self.image_name, format='pdf', bbox_inches = 'tight', pad_inches = 0, dpi = (self.dpi))#*dpi_scale))
+            self.fig.savefig(self.image_path+self.image_name, format=self.mp['file_format'], bbox_inches = self.mp['bounding_box'], pad_inches = self.mp['padding'], dpi = self.mp['dpi'])
 
+    def plot(self):
+        max_iter, color_map = self.p['max_iteration'], self.p['color_map']
+        sp_layout = self.mp['sp_layout']
+        x_mesh, y_mesh, result = self.x_mesh, self.y_mesh, self.result
 
-# settings for hypercomplex fractal
-resolution_x =256
-resolution_y =160
-res_scale = 1
-maxitr = 50
-bound_scale = 0.9  #default is 1.28=2560/1600/1.25
-zoom = 0
-location = 0
-MultibrotAttrs.with_kwargs(escape = 20, max_iteration = maxitr, enable_return = True)
-Hyperfractest = Fractalplot(-2.25*bound_scale-zoom, 0.75*bound_scale+zoom, -0.9375*bound_scale-zoom/1.6, 0.9375*bound_scale+zoom/1.6, resolution_x*res_scale, resolution_y*res_scale, Hyperbrot, enable_save=False)
-
-# resolution_x = 256
-# resolution_y = 256
-# dpi_scale = 1
-# MultibrotAttrs.with_kwargs(escape = 4, enable_return = True)
-# fractest = Fractalplot(0, 2, -2, 2, resolution_x*dpi_scale, resolution_y*dpi_scale, Multibrot)
-
-# mbp 2019 2560x1600 @ 227 dpi
-#mandelbrot bounds: -2.5,0.5, -1.25, 1.25, 200
-#for mbp wallpaper: (-2.5, 0.5,  -0.9375, 0.9375)*(bound_scale=1.28)
-#for hypermap, maxitr =40 and escape = 4 is the default i'm using.
+        self.fig, self.axs = plt.subplots(layout=sp_layout)
+        self.pc = self.axs.pcolormesh(x_mesh, y_mesh, result, vmin=1, vmax=max_iter, cmap=color_map)
+        self.show_graph()
+        self.save_graph()
+        
+fractal_map = Plotter(default_plot_parameters, meta_plot_parameters)
